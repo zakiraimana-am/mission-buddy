@@ -1,1 +1,0 @@
-Letakkan 4 fail .md syllabus dalam folder ini. Nama boleh fleksibel, tapi disyorkan: mesopotamia.md, egypt.md, indus.md, huang_he.md.
