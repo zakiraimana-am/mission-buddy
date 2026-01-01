@@ -3,12 +3,14 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from lib.syllabus import load_civ_chunks, retrieve_relevant_chunks, discover_civ_file, list_md_files
+from lib.game_docs import load_game_chunks, retrieve_relevant_game_chunks
 from lib.prompts import build_system_prompt, build_user_message
 from lib.openai_api import chat_completion
 
 st.set_page_config(page_title="Mission Buddy", layout="centered")
 load_dotenv()
 
+# Readable light/dark text
 st.markdown("""
 <style>
 .block-container { padding-top: 1.0rem; padding-bottom: 2rem; max-width: 760px; }
@@ -33,12 +35,23 @@ div[data-testid="stChatMessage"] a {
 """, unsafe_allow_html=True)
 
 SYLLABUS_DIR = "data/syllabus"
+GAME_DOC_PATH = "data/game_design.md"
+
 ALLOWED = ["MES", "EGY", "IND", "HHE"]
 CIV_LOCKED = os.getenv("CIV_LOCKED", "").strip().upper()
 
 api_key = os.getenv("OPENAI_API_KEY", "")
 if not api_key:
     st.warning("OPENAI_API_KEY belum diset. Set dulu sebelum chat.")
+    st.stop()
+
+# Always load game reference
+game_chunks_all = load_game_chunks(GAME_DOC_PATH)
+if not game_chunks_all:
+    st.error(
+        "Fail rujukan game tidak ditemui: data/game_design.md\n\n"
+        "✅ Pastikan file ini ada dalam repo, dan dah commit ke GitHub sebelum deploy Render."
+    )
     st.stop()
 
 with st.sidebar:
@@ -57,6 +70,7 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
+# Load civ syllabus
 chunks = load_civ_chunks(civ_code=civ, syllabus_dir=SYLLABUS_DIR)
 if not chunks:
     files = list_md_files(SYLLABUS_DIR)
@@ -71,43 +85,48 @@ if not chunks:
 
 if debug:
     f = discover_civ_file(civ, SYLLABUS_DIR)
-    st.info(f"Loaded {len(chunks)} chunks untuk {civ}. Contoh ID: {list(chunks.keys())[:5]}")
-    st.caption(f"Fail digunakan: {f.name if f else '—'}")
+    st.info(f"Loaded {len(chunks)} chunks SYLLABUS untuk {civ}. Contoh ID: {list(chunks.keys())[:5]}")
+    st.caption(f"Fail syllabus digunakan: {f.name if f else '—'}")
+    st.caption(f"Loaded {len(game_chunks_all)} chunks GAME dari game_design.md")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 st.title("Mission Buddy")
-st.caption("Companion chat untuk Eksplorasi Digital.")
+st.caption("Companion chat untuk Eksplorasi Digital")
 
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
 
-user_text = st.chat_input("Tulis masalah anda di sini… (contoh: “Saya keliru maksud soalan ini…”)")
+user_text = st.chat_input("Tulis soalan atau masalah anda…")
 if user_text:
     st.session_state.messages.append({"role": "user", "content": user_text})
     with st.chat_message("user"):
         st.markdown(user_text)
 
-    top_chunks = retrieve_relevant_chunks(user_text, chunks, k=12)
+    # Retrieve BOTH contexts every turn
+    top_game = retrieve_relevant_game_chunks(user_text, game_chunks_all, k=10)
+    top_syl = retrieve_relevant_chunks(user_text, chunks, k=12)
+
     system_prompt = build_system_prompt(civ_code=civ)
     user_msg = build_user_message(
         civ_code=civ,
         mission_id=mission_id.strip() or None,
         struggle=user_text,
-        context_chunks=top_chunks,
+        game_chunks=top_game,
+        syllabus_chunks=top_syl,
     )
 
     messages = [{"role": "system", "content": system_prompt}]
-    history = st.session_state.messages[-12:]
+    history = st.session_state.messages[-10:]
     for h in history:
         messages.append({"role": h["role"], "content": h["content"]})
     messages.append({"role": "user", "content": user_msg})
 
     with st.chat_message("assistant"):
         with st.spinner("Saya sedang jawab…"):
-            reply = chat_completion(model=model, messages=messages, temperature=0.4, max_tokens=550)
+            reply = chat_completion(model=model, messages=messages, temperature=0.4, max_tokens=600)
             st.markdown(reply)
 
     st.session_state.messages.append({"role": "assistant", "content": reply})
