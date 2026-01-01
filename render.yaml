@@ -1,0 +1,48 @@
+services:
+  - type: web
+    name: mission-buddy-mes
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
+    envVars:
+      - key: CIV_LOCKED
+        value: MES
+      - key: OPENAI_API_KEY
+        sync: false
+
+  - type: web
+    name: mission-buddy-egy
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
+    envVars:
+      - key: CIV_LOCKED
+        value: EGY
+      - key: OPENAI_API_KEY
+        sync: false
+
+  - type: web
+    name: mission-buddy-ind
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
+    envVars:
+      - key: CIV_LOCKED
+        value: IND
+      - key: OPENAI_API_KEY
+        sync: false
+
+  - type: web
+    name: mission-buddy-hhe
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
+    envVars:
+      - key: CIV_LOCKED
+        value: HHE
+      - key: OPENAI_API_KEY
+        sync: false
